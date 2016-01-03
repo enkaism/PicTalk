@@ -65,7 +65,6 @@ public class MessageAdapter extends BaseAdapter {
     }
 
     PicTalk item = (PicTalk) getItem(position);
-
     Picasso.with(context).load(Const.STORAGE_BASE_URL + item.getImageUrl()).into(holder.imageView);
 
     return convertView;

@@ -1,10 +1,8 @@
 // Copyright 2015 kotemaru.org. (http://www.apache.org/licenses/LICENSE-2.0)
 package com.kamikikai.enkaism.pictalk.camera;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
@@ -19,15 +17,12 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.ImageReader;
 import android.os.Handler;
-import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
 import java.util.Arrays;
 import java.util.List;
-
-import static android.support.v4.content.PermissionChecker.checkSelfPermission;
 
 public class Camera2StateMachine {
   private static final String TAG = Camera2StateMachine.class.getSimpleName();
@@ -169,6 +164,7 @@ public class Camera2StateMachine {
       Size previewSize = Camera2Util.getBestPreviewSize(map, mImageReader);
       mTextureView.setPreviewSize(previewSize.getHeight(), previewSize.getWidth());
 
+      //noinspection ResourceType
       mCameraManager.openCamera(cameraId, mStateCallback, mHandler);
       Log.d(TAG, "openCamera:" + cameraId);
     }

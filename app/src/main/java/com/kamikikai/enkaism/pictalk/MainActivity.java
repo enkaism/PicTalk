@@ -72,8 +72,6 @@ public class MainActivity extends AppCompatActivity {
               picTalks.add(new PicTalk(paths.get(0), paths.get(1)));
             }
             adapter.addAll(picTalks);
-            Toast.makeText(getApplicationContext(), response.body().getPath().get(0).get(0),
-                Toast.LENGTH_LONG).show();
           }
         } else {
           try {
