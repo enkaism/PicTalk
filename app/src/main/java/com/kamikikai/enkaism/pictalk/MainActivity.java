@@ -1,150 +1,97 @@
 package com.kamikikai.enkaism.pictalk;
 
-import android.app.Activity;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.media.Image;
-import android.media.ImageReader;
-import android.media.MediaRecorder;
+import android.content.Intent;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
-import android.util.Log;
-import android.view.KeyEvent;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
-import android.widget.Button;
-import android.widget.ImageView;
+import android.widget.AdapterView;
+import android.widget.ListView;
+import android.widget.Toast;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import com.kamikikai.enkaism.pictalk.camera.AutoFitTextureView;
-import com.kamikikai.enkaism.pictalk.camera.Camera2StateMachine;
 import com.kamikikai.enkaism.pictalk.data.api.PicTalkService;
 import com.kamikikai.enkaism.pictalk.data.api.ServiceGenerator;
-import com.squareup.okhttp.MediaType;
-import com.squareup.okhttp.RequestBody;
-import java.io.File;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import retrofit.Call;
+import com.kamikikai.enkaism.pictalk.data.api.model.Message;
+import com.kamikikai.enkaism.pictalk.data.api.model.PicTalk;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import retrofit.Callback;
 import retrofit.Response;
 import retrofit.Retrofit;
 
-public class MainActivity extends Activity {
-  private static final String PICTURE_PATH = "PICTURE_PATH";
-  private static final String VOICE_PATH = "VOICE_PATH";
+public class MainActivity extends AppCompatActivity {
 
-  @Bind(R.id.textureView) AutoFitTextureView textureView;
-  @Bind(R.id.imageView) ImageView imageView;
-  @Bind(R.id.shutterButton) Button shutterButton;
-  private Camera2StateMachine camera2;
-  private MediaRecorder recorder;
-  private Map<String, String> filePaths = new HashMap<>();
-  private byte[] pictureContent;
+  @Bind(R.id.listView) ListView listView;
+  private MessageAdapter adapter;
+  private PicTalkService service;
+  private MediaPlayer mediaPlayer;
 
   @Override protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
     ButterKnife.bind(this);
-    camera2 = new Camera2StateMachine();
-  }
-
-  @Override protected void onResume() {
-    super.onResume();
-    camera2.open(this, textureView);
-  }
-
-  @Override protected void onPause() {
-    camera2.close();
-    super.onPause();
-  }
-
-  @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
-    if (keyCode == KeyEvent.KEYCODE_BACK && imageView.getVisibility() == View.VISIBLE) {
-      textureView.setVisibility(View.VISIBLE);
-      imageView.setVisibility(View.INVISIBLE);
-      return false;
-    }
-    return super.onKeyDown(keyCode, event);
-  }
-
-  private void uploadFiles() {
-    PicTalkService service = ServiceGenerator.createService(PicTalkService.class);
-
-    File voiceFile = new File(filePaths.get(VOICE_PATH));
-
-    Call<String> call =
-        service.upload(RequestBody.create(MediaType.parse("multipart/form-data"), pictureContent),
-            RequestBody.create(MediaType.parse("multipart/form-data"), voiceFile));
-
-    call.enqueue(new Callback<String>() {
-      @Override public void onResponse(Response<String> response, Retrofit retrofit) {
-        Log.v("Upload", "success");
-      }
-
-      @Override public void onFailure(Throwable t) {
-        Log.e("Upload", t.getMessage());
+    service = ServiceGenerator.createService(PicTalkService.class);
+    mediaPlayer = new MediaPlayer();
+    adapter = new MessageAdapter(getApplicationContext(), null);
+    listView.setAdapter(adapter);
+    listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+      @Override public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        PicTalk picTalk = (PicTalk) adapter.getItem(position);
+        try {
+          mediaPlayer.reset();
+          mediaPlayer.setDataSource(getApplicationContext(),
+              Uri.parse(Const.STORAGE_BASE_URL + picTalk.getVoiceUrl()));
+          mediaPlayer.prepare();
+          mediaPlayer.start();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
       }
     });
   }
 
-  @OnClick(R.id.shutterButton) public void onClickShutter(View view) {
-    if (shutterButton.getTag().equals(getString(R.string.picture))) {
-      camera2.takePicture(new ImageReader.OnImageAvailableListener() {
-        @Override public void onImageAvailable(ImageReader reader) {
-          // 撮れた画像をImageViewに貼り付けて表示。
-          final Image image = reader.acquireLatestImage();
-          ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-          pictureContent = new byte[buffer.remaining()];
-          buffer.get(pictureContent);
-          Bitmap bitmap = BitmapFactory.decodeByteArray(pictureContent, 0, pictureContent.length);
-          image.close();
+  @Override protected void onResume() {
+    super.onResume();
+    getMessage();
+  }
 
-          imageView.setImageBitmap(bitmap);
-          //try {
-          //  ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          //  FileOutputStream fos = openFileOutput("test.png", Context.MODE_PRIVATE);
-          //
-          //  bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
-          //  fos.flush();
-          //  fos.close();
-          //} catch (FileNotFoundException e) {
-          //  e.printStackTrace();
-          //} catch (IOException e) {
-          //  e.printStackTrace();
-          //}
-          imageView.setVisibility(View.VISIBLE);
-          textureView.setVisibility(View.INVISIBLE);
-          shutterButton.setTag(getString(R.string.recording));
+  private void getMessage() {
+    adapter.clear();
+    service.getMessage().enqueue(new Callback<Message>() {
+      @Override public void onResponse(Response<Message> response, Retrofit retrofit) {
+        if (response.isSuccess()) {
+          if (response.body().getCount() == 0) {
+            Toast.makeText(getApplicationContext(), "no contents", Toast.LENGTH_LONG).show();
+          } else {
+            List<PicTalk> picTalks = new ArrayList<>();
+            for (List<String> paths : response.body().getPath()) {
+              picTalks.add(new PicTalk(paths.get(0), paths.get(1)));
+            }
+            adapter.addAll(picTalks);
+            Toast.makeText(getApplicationContext(), response.body().getPath().get(0).get(0),
+                Toast.LENGTH_LONG).show();
+          }
+        } else {
+          try {
+            Toast.makeText(getApplicationContext(), response.errorBody().string(),
+                Toast.LENGTH_LONG).show();
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
         }
-      });
-    } else if (shutterButton.getTag().equals(getString(R.string.recording))) {
-      Log.d("log", "start recording");
-      recorder = new MediaRecorder();
-      recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-      recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-      recorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
-
-      //保存先
-      filePaths.put(VOICE_PATH, Environment.getExternalStorageDirectory() + "/audio.mp4");
-      recorder.setOutputFile(filePaths.get(VOICE_PATH));
-
-      //録音準備＆録音開始
-      try {
-        recorder.prepare();
-      } catch (Exception e) {
-        e.printStackTrace();
       }
-      recorder.start();   //録音開始
-      shutterButton.setTag(getString(R.string.stop));
-      shutterButton.setText(R.string.stop);
-    } else if (shutterButton.getTag().equals(getString(R.string.stop))) {
-      recorder.stop();
-      recorder.reset();   //オブジェクトのリセット
-      //release()前であればsetAudioSourceメソッドを呼び出すことで再利用可能
-      recorder.release(); //Recorderオブジェクトの解放
-      uploadFiles();
-    }
+
+      @Override public void onFailure(Throwable t) {
+        Toast.makeText(getApplicationContext(), t.getMessage(), Toast.LENGTH_LONG).show();
+      }
+    });
+  }
+
+  @OnClick(R.id.sendButton) public void clickSendButton() {
+    startActivity(new Intent(this, PostActivity.class));
   }
 }

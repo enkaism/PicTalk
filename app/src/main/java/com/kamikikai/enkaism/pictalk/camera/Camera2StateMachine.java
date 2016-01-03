@@ -31,7 +31,6 @@ import static android.support.v4.content.PermissionChecker.checkSelfPermission;
 
 public class Camera2StateMachine {
   private static final String TAG = Camera2StateMachine.class.getSimpleName();
-  private static final int REQUEST_CAMERA_PERMISSION = 1;
   private CameraManager mCameraManager;
 
   private CameraDevice mCameraDevice;
@@ -170,18 +169,6 @@ public class Camera2StateMachine {
       Size previewSize = Camera2Util.getBestPreviewSize(map, mImageReader);
       mTextureView.setPreviewSize(previewSize.getHeight(), previewSize.getWidth());
 
-      if (checkSelfPermission(mActivity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-        // TODO: Consider calling
-        //    public void requestPermissions(@NonNull String[] permissions, int requestCode)
-        // here to request the missing permissions, and then overriding
-        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-        //                                          int[] grantResults)
-        // to handle the case where the user grants the permission. See the documentation
-        // for Activity#requestPermissions for more details.
-        ActivityCompat.requestPermissions(mActivity,new String[]{Manifest.permission.CAMERA},
-            REQUEST_CAMERA_PERMISSION);
-        return;
-      }
       mCameraManager.openCamera(cameraId, mStateCallback, mHandler);
       Log.d(TAG, "openCamera:" + cameraId);
     }

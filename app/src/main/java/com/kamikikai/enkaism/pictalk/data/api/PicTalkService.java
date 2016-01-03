@@ -1,5 +1,6 @@
 package com.kamikikai.enkaism.pictalk.data.api;
 
+import com.kamikikai.enkaism.pictalk.data.api.model.Message;
 import com.squareup.okhttp.RequestBody;
 import retrofit.Call;
 import retrofit.http.GET;
@@ -11,10 +12,9 @@ import retrofit.http.Part;
  * Created by enkaism on 1/3/16.
  */
 public interface PicTalkService {
-  @GET("/message") 
+  @GET("/message") Call<Message> getMessage();
 
-  @Multipart
-  @POST("/upload") Call<String> upload(
+  @Multipart @POST("/upload") Call<String> upload(
       @Part("pic\"; filename=\"pic.jpg\" ") RequestBody file1,
       @Part("talk\"; filename=\"voice.mp4\" ") RequestBody file2);
 }
